@@ -1,4 +1,4 @@
-// httpdiff: performs two HTTP requests and diffs the responses
+// main: performs two HTTP requests and diffs the responses
 //
 // Copyright (c) 2015 John Graham-Cumming
 package main
@@ -59,7 +59,7 @@ func vsi(a, b int, f string, v ...interface{}) bool {
 // do an HTTP request to a server and returns the response object and the
 // complete response body. There's no need to close the response body as this
 // will have been done.
-func do(method, host, ua, uri string) (*http.Response, []byte, error) {
+func do(method, host, ua, ae, via, uri string) (*http.Response, []byte, error) {
 	req, err := http.NewRequest(method, uri, nil)
 	if err != nil {
 		return nil, nil, err
@@ -69,6 +69,12 @@ func do(method, host, ua, uri string) (*http.Response, []byte, error) {
 	}
 	if ua != "" {
 		req.Header["User-Agent"] = []string{ua}
+	}
+	if ae != "" {
+		req.Header["Accept-Encoding"] = []string{ae}
+	}
+	if via != "" {
+		req.Header["Via"] = []string{via}
 	}
 
 	resp, err := client.Do(req)
@@ -91,6 +97,8 @@ func main() {
 		"Comma-separated list of headers to ignore")
 	flag.BoolVar(&mono, "mono", false, "Monochrome output")
 	ua := flag.String("agent", "httpdiff/0.1", "Sets User-Agent")
+	ae := flag.String("accept-encoding", "gzip", "Sets Accept-Encoding")
+	via := flag.String("via", "", "Sets Via header")
 	help := flag.Bool("help", false, "Print usage")
 	insecure := flag.Bool("insecure", false, "Allow connection to HTTPS sites without certs")
 	diffapp := flag.String("diffapp", "", "The diff application to call when response bodies are different")
@@ -137,7 +145,11 @@ func main() {
 	for i := 0; i < 2; i++ {
 		wg.Add(1)
 		go func(i int) {
-			resp[i], body[i], err[i] = do(*method, *host, *ua, flag.Arg(i))
+			v := *via
+			if i == 0 {
+				v = "cloudflare"
+			}
+			resp[i], body[i], err[i] = do(*method, *host, *ua, *ae, v, flag.Arg(i))
 			wg.Done()
 		}(i)
 	}

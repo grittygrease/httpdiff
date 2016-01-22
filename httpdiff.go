@@ -132,6 +132,7 @@ func main() {
 
 	if *insecure {
 		client = &http.Client{
+			Timeout: time.Duration(3 * time.Second),
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			},
